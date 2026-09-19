@@ -1,5 +1,7 @@
 FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
+ENV DOCKER_BUILDKIT=1
+ENV BUILDKIT_PROGRESS=plain
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
