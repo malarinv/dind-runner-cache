@@ -15,13 +15,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     sudo \
     && rm -rf /var/lib/apt/lists/*
 
-# Docker CLI to interact with DinD socket
+# Docker CLI and buildx to interact with DinD socket
 COPY --from=docker:24.0.7-cli /usr/local/bin/docker /usr/local/bin/docker
+COPY --from=docker:24.0.7-cli /usr/local/libexec/docker/cli-plugins/docker-buildx /usr/local/libexec/docker/cli-plugins/docker-buildx
 
 # Node.js 20 runtime for GitHub/Forgejo Actions Javascript actions
 COPY --from=node:20-bookworm-slim /usr/local/bin/node /usr/local/bin/node
 
-# Ensure node and docker are executable
-RUN chmod +x /usr/local/bin/node /usr/local/bin/docker
+# Ensure node, docker, and buildx are executable
+RUN chmod +x /usr/local/bin/node /usr/local/bin/docker /usr/local/libexec/docker/cli-plugins/docker-buildx
 
 CMD ["/bin/bash"]
