@@ -5,10 +5,23 @@ set -e
 if [ -d "/var/lib/docker-cache" ] && [ -d "/var/lib/docker-empty" ]; then
   echo "Setting up OverlayFS for DinD cache..."
   mkdir -p /var/lib/docker-empty/upper /var/lib/docker-empty/work /var/lib/docker
-  mount -t overlay overlay \
+  # Kernel overlayfs rejects nesting an overlay lowerdir on top of the
+  # host's own overlayfs root (EINVAL on this node); if the mount fails,
+  # fall back to fuse-overlayfs instead of letting dockerd degrade to vfs
+  # (which full-copies every layer and OOMs the 4Gi dind during builds).
+  if ! mount -t overlay overlay \
     -o lowerdir=/var/lib/docker-cache,upperdir=/var/lib/docker-empty/upper,workdir=/var/lib/docker-empty/work \
-    /var/lib/docker
-  echo "OverlayFS mounted successfully on /var/lib/docker!"
+    /var/lib/docker 2>/var/log/overlay-mount.err; then
+    echo "Kernel overlay mount failed; falling back to fuse-overlayfs:"
+    cat /var/log/overlay-mount.err || true
+    # fuse-overlayfs must be installed in this image (apk add fuse-overlayfs).
+    mount -t fuse.overlayfs fuse-overlayfs \
+      -o lowerdir=/var/lib/docker-cache,upperdir=/var/lib/docker-empty/upper,workdir=/var/lib/docker-empty/work \
+      /var/lib/docker
+    echo "fuse-overlayfs mounted successfully on /var/lib/docker!"
+  else
+    echo "OverlayFS mounted successfully on /var/lib/docker!"
+  fi
 fi
 
 # Disable IPv6 in the dind kernel namespace (jobs inherit via dockerd bridge).
